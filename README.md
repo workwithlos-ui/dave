@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <strong>Data Acquisition and Validation Engine for production AI-powered scraping.</strong>
+  <strong>AI-powered scraping without LangChain, graph DSLs, or dependency bloat.</strong>
 </p>
 
 <p align="center">
-  Give DAVE a URL and get clean, validated, structured data. Use a prompt, a Pydantic schema, a built-in recipe, or nothing at all.
+  Give DAVE a URL and get clean, validated, structured data. DAVE ships with five runtime dependencies, no LangChain dependency, and no graph framework to learn. Use a prompt, a Pydantic schema, a built-in recipe, or nothing at all.
 </p>
 
 <p align="center">
@@ -46,40 +46,43 @@ result = await dave.extract("https://example.com", "get the title and descriptio
 print(result)
 ```
 
-DAVE is designed for developers who need more than a prototype. It combines fetcher selection, LLM extraction, Pydantic validation, caching, retries, rate limits, confidence scoring, cost tracking, batch jobs, and a plugin system in one typed Python package.
+DAVE is designed for developers who need more than a prototype but do not want a full LangChain dependency tree. It combines fetcher selection, LLM extraction, Pydantic validation, caching, retries, rate limits, heuristic confidence scoring, cost tracking, batch jobs, and a plugin system in one typed Python package with only five runtime dependencies.
 
 ## Why DAVE?
 
-Most AI scraping tools are impressive in a notebook and fragile in a production job. DAVE is built around the work that happens after the first demo succeeds: retries, validation, costs, queueing, cache hits, proxy rotation, fallback fetchers, field confidence, and clear CLI output that operators can trust.
+Most AI scraping tools are impressive in a notebook and heavy in a production job. ScrapeGraphAI publicly documents a graph-based API and a broad LangChain dependency stack. DAVE takes the opposite path: a small typed core, direct fetcher and extractor interfaces, and production controls that are easy to reason about.
 
 | What developers need | How DAVE handles it |
 | --- | --- |
+| Keep dependency risk low | Ships with five runtime dependencies: Beautiful Soup, HTTPX, Pydantic, Rich, and Typer |
+| Avoid framework lock-in | Uses no LangChain dependency and no graph DSL |
 | Scrape static and JavaScript-heavy pages | Auto-selects HTTP or Playwright, with extension points for Firecrawl and Crawl4AI |
 | Extract with a prompt or a schema | Accepts natural language prompts, Pydantic models, built-in recipes, or no prompt at all |
-| Trust the output | Validates every extraction through Pydantic and adds field confidence |
+| Trust the output | Validates schema extraction through Pydantic and reports transparent heuristic confidence |
 | Keep costs visible | Estimates tokens before runs and tracks cost after runs |
 | Run hundreds of URLs | Includes batch mode, retries, rate limits, progress, and JSON output |
 | Avoid building glue code | Ships caching, queueing, structured logging, CLI commands, and plugin registration |
 
+Confidence is a transparent heuristic based on evidence presence and source-text overlap, not a model-reported probability.
+
 ## Feature comparison
 
-| Feature | DAVE | ScrapeGraphAI | Firecrawl | Crawl4AI | BeautifulSoup |
+This table is intentionally conservative. It compares publicly documented positioning and core APIs, not private roadmaps or unmeasured performance claims.
+
+| Capability | DAVE | ScrapeGraphAI | Firecrawl | Crawl4AI | BeautifulSoup |
 | --- | --- | --- | --- | --- | --- |
-| Zero-config URL to structured data | Yes | Partial | No | No | No |
-| Natural language extraction | Yes | Yes | Partial | Partial | No |
-| Pydantic validation on every run | Yes | Partial | No | No | No |
-| Field confidence scoring | Yes | Limited | No | No | No |
-| HTTP and Playwright fetchers | Yes | Partial | Hosted fetch | Yes | No |
-| Automatic fetcher selection | Yes | Limited | Hosted | Partial | No |
-| Bring your own proxies | Yes | Limited | Plan dependent | Yes | Manual |
-| Response caching | Yes | Limited | Hosted | Yes | Manual |
-| Domain rate limiting | Yes | Manual | Hosted | Partial | Manual |
-| Batch job queue | Yes | Limited | Hosted | Partial | Manual |
-| Token and cost tracking | Yes | Limited | No | No | No |
-| Streaming field output | Yes | No | No | No | No |
-| Built-in extraction recipes | Yes | No | No | No | No |
-| Plugin system | Yes | No | API only | Partial | Manual |
-| Best fit | Production extraction engine | Prototype graph extraction | Hosted crawling API | Open crawler framework | HTML parsing primitives |
+| Core positioning | Lean Python extraction engine | Graph-based AI scraping library | Hosted web data API | Open LLM-friendly crawler and scraper | HTML and XML parser |
+| LangChain dependency in core install | No | Yes, documented in package metadata | Not applicable to hosted API usage | No claim in docs reviewed | No |
+| Runtime dependency count in Python package | Five core dependencies | Broad dependency tree in package metadata | SDK plus hosted service | Framework package with browser-focused stack | Parser library |
+| Natural-language extraction | Yes | Yes, via graph APIs | Yes, via Extract API | Yes, via LLM extraction strategies | No |
+| Schema-shaped extraction | Yes, Pydantic-first | Yes, documented schema examples | Yes, JSON schema in Extract API | Yes, CSS, XPath, and LLM strategies | Manual code |
+| Zero-prompt, zero-schema URL extraction | Yes, built into DAVE | Not documented in sources reviewed | Prompt or schema documented for Extract | Not documented in sources reviewed | Manual code |
+| Built-in recipes for common pages | Yes, company, pricing, jobs, contact, product, reviews | Not a primary documented abstraction | Not a primary documented abstraction | Not a primary documented abstraction | Manual code |
+| Fetching model | HTTP plus optional Playwright, plugin fetchers | Playwright and provider integrations documented | Hosted scrape, crawl, search, extract, interact API | Browser crawler with advanced controls | Bring your own HTTP client |
+| Search plus extraction | Planned fast-follow | SearchGraph documented | Search and Extract documented | Adaptive crawling documented | Manual code |
+| Best fit | Lean structured extraction with production controls | Graph-oriented AI scraping workflows | Managed crawling and extraction API | Configurable open crawler framework | Deterministic HTML parsing |
+
+Sources reviewed: [ScrapeGraphAI README](https://github.com/ScrapeGraphAI/Scrapegraph-ai), [ScrapeGraphAI package metadata](https://github.com/ScrapeGraphAI/Scrapegraph-ai/blob/main/pyproject.toml), [Firecrawl docs](https://docs.firecrawl.dev/introduction), [Firecrawl Extract docs](https://docs.firecrawl.dev/features/extract), [Crawl4AI docs](https://docs.crawl4ai.com/), and [Beautiful Soup docs](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
 
 ## Zero-config magic
 
@@ -314,19 +317,11 @@ dave extract "https://internal.example" --fetcher internal --prompt "summarize t
 
 Plugins make it possible to add authenticated browser sessions, enterprise crawlers, proxy vendors, custom LLM routers, domain-specific validators, and private data enrichment steps.
 
-## Benchmarks
+## Benchmarks coming
 
-These benchmark targets are included so contributors can reproduce and improve DAVE over time. The current project ships the benchmark table as a transparent baseline for what DAVE is optimized to achieve.
+A reproducible benchmark suite is in development. We will publish real numbers, not targets, once it lands. Track it in issue #1.
 
-| Tool | Median speed | Valid schema rate | Cost visibility | Retry reliability | Production score |
-| --- | ---: | ---: | --- | ---: | ---: |
-| DAVE | 1.0x baseline | 98 percent | Built in | 99 percent | 9.1 |
-| ScrapeGraphAI | 0.7x | 86 percent | Limited | 82 percent | 6.8 |
-| Firecrawl | 1.2x crawl only | Not extraction-first | Hosted usage | 95 percent | 7.4 |
-| Crawl4AI | 1.1x crawl only | Not extraction-first | Manual | 88 percent | 7.1 |
-| BeautifulSoup | 2.5x parsing only | Manual | Not applicable | Manual | 5.9 |
-
-The benchmark suite is intentionally practical. It measures end-to-end extraction from real product, pricing, jobs, documentation, and contact pages. It scores speed, JSON validity, schema validity, field accuracy, retries, cache behavior, and model cost.
+The benchmark suite will measure end-to-end extraction from real product, pricing, jobs, documentation, and contact pages. It will publish fixtures, scripts, provider settings, hardware assumptions, network assumptions, and raw results so maintainers and users can reproduce the numbers.
 
 ## Configuration
 
