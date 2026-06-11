@@ -325,6 +325,10 @@ DAVE ships with a multi-fetcher backend and a simple routing model.
 
 Proxy rotation is configured through `DaveConfig.proxies`. Bring your own proxy URLs and DAVE will rotate them across requests.
 
+### Respecting robots.txt
+
+Set `respect_robots_txt=True` (or `DaveConfig(respect_robots_txt=True)`) and DAVE checks each site's robots.txt before fetching, caches the result per domain, and refuses disallowed URLs with a clear `RobotsDisallowedError`. If robots.txt is unreachable, DAVE allows the fetch. Local files are never subject to robots rules.
+
 ### Stealth fetcher
 
 Some sites block headless browsers with bot walls and 403s. The stealth fetcher runs Playwright with an evasion layer — automation-control launch flags, a realistic browser context and client hints, and an init script that hides the signals most bot walls inspect (`navigator.webdriver`, missing `window.chrome`, headless WebGL vendor strings). It adds no heavy dependency such as `undetected-playwright`; it only needs Playwright, installed through the `stealth` extra.

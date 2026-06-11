@@ -18,13 +18,14 @@ from dave.antibot.proxies import ProxyPool
 from dave.antibot.stealth import DelayPolicy, UserAgentRotator, detect_captcha, random_headers
 from dave.cache.store import CacheStore
 from dave.core.config import DaveConfig
-from dave.core.errors import CaptchaDetectedError, FetchError, LowConfidenceError
+from dave.core.errors import CaptchaDetectedError, FetchError, LowConfidenceError, RobotsDisallowedError
 from dave.extractors.llm import ExtractionResult, LLMExtractor
 from dave.extractors.schema import make_schema_adapter, schema_prompt
 from dave.fetchers.base import BaseFetcher, FetchRequest, FetchResult
 from dave.fetchers.file import FileFetcher, is_local_source
 from dave.fetchers.http import HttpFetcher
 from dave.fetchers.playwright import PlaywrightFetcher
+from dave.fetchers.robots import RobotsCache
 from dave.monitoring.costs import CostTracker, estimate_tokens
 from dave.monitoring.logging import get_logger
 from dave.search import get_search_provider
@@ -115,6 +116,7 @@ class DaveEngine:
         self.user_agents = UserAgentRotator()
         self.proxies = ProxyPool(self.config.antibot.proxies)
         self.delay_policy = DelayPolicy(self.config.antibot.min_delay_seconds, self.config.antibot.max_delay_seconds)
+        self.robots = RobotsCache()
 
     async def extract(
         self,
@@ -280,6 +282,11 @@ class DaveEngine:
             cached = self.cache.get("fetch", cache_key)
             if cached is not None:
                 return FetchResult.from_dict(cached)
+
+        if self.config.respect_robots_txt and not is_local_source(url):
+            robots_agent = self.user_agents.get() if self.config.antibot.rotate_user_agents else "DAVE"
+            if not await self.robots.allowed(url, robots_agent):
+                raise RobotsDisallowedError(f"robots.txt disallows fetching {url}")
 
         await self.rate_limiter.wait(url)
         delay = self.delay_policy.next_delay()

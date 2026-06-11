@@ -15,6 +15,10 @@ class CaptchaDetectedError(FetchError):
     """Raised when DAVE detects a CAPTCHA or bot challenge."""
 
 
+class RobotsDisallowedError(FetchError):
+    """Raised when robots.txt disallows fetching a URL and robots are respected."""
+
+
 class ExtractionError(DaveError):
     """Raised when extraction fails."""
 
