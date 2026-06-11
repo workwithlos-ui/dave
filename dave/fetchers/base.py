@@ -15,6 +15,7 @@ class FetcherKind(str, Enum):
     HTTP = "http"
     PLAYWRIGHT = "playwright"
     STEALTH = "stealth"
+    FILE = "file"
     FIRECRAWL = "firecrawl"
     CRAWL4AI = "crawl4ai"
 

@@ -320,6 +320,7 @@ DAVE ships with a multi-fetcher backend and a simple routing model.
 | `http` | Fast static pages and APIs | `--fetcher http` |
 | `playwright` | JavaScript-rendered pages | `--fetcher playwright` |
 | `stealth` | Sites that block ordinary automation | `--fetcher stealth` |
+| `file` | Local files: text, HTML, Markdown, JSON, PDF | auto for local paths and `file://` |
 | plugin | Firecrawl, Crawl4AI, internal crawlers, or custom fetchers | `--fetcher your_name` |
 
 Proxy rotation is configured through `DaveConfig.proxies`. Bring your own proxy URLs and DAVE will rotate them across requests.

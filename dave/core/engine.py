@@ -22,6 +22,7 @@ from dave.core.errors import CaptchaDetectedError, FetchError, LowConfidenceErro
 from dave.extractors.llm import ExtractionResult, LLMExtractor
 from dave.extractors.schema import make_schema_adapter, schema_prompt
 from dave.fetchers.base import BaseFetcher, FetchRequest, FetchResult
+from dave.fetchers.file import FileFetcher, is_local_source
 from dave.fetchers.http import HttpFetcher
 from dave.fetchers.playwright import PlaywrightFetcher
 from dave.monitoring.costs import CostTracker, estimate_tokens
@@ -103,6 +104,7 @@ class DaveEngine:
         default_fetchers: dict[str, BaseFetcher] = {
             "http": HttpFetcher(),
             "playwright": PlaywrightFetcher(),
+            "file": FileFetcher(),
         }
         default_fetchers.update(plugins.get_fetchers())
         if fetchers:
@@ -340,6 +342,8 @@ class DaveEngine:
                     "Register plugin fetchers with dave.plugins.register_fetcher() before use."
                 )
             return self.config.fetcher
+        if is_local_source(url):
+            return "file"
         if self._should_render_js(url):
             return "playwright"
         return "http"
