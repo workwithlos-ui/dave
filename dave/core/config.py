@@ -71,6 +71,7 @@ class DaveConfig(BaseModel):
     min_confidence: float = Field(default=0.65, ge=0.0, le=1.0)
     max_low_confidence_retries: int = Field(default=1, ge=0)
     chunk_size_chars: int = Field(default=12_000, ge=1_000)
+    chunk_overlap_chars: int = Field(default=200, ge=0, description="Characters of context repeated across chunk boundaries.")
     max_chunks: int = Field(default=8, ge=1)
     respect_robots_txt: bool = False
     cache: CacheConfig = Field(default_factory=CacheConfig)

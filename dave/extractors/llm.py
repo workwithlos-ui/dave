@@ -11,6 +11,7 @@ import httpx
 
 from dave.core.config import DaveConfig
 from dave.core.errors import ExtractionError
+from dave.extractors.chunking import chunk_text
 from dave.extractors.confidence import ConfidenceReport, score_confidence
 from dave.extractors.schema import SchemaAdapter, schema_prompt, validate_against_schema
 from dave.monitoring.costs import CostTracker, estimate_tokens
@@ -70,10 +71,13 @@ class LLMExtractor:
         )
 
     def _chunk(self, text: str) -> list[str]:
-        """Split source text into bounded chunks."""
-        size = self.config.chunk_size_chars
-        chunks = [text[index : index + size] for index in range(0, len(text), size)]
-        return chunks[: self.config.max_chunks] or [""]
+        """Split source text into bounded chunks on semantic boundaries."""
+        return chunk_text(
+            text,
+            max_chars=self.config.chunk_size_chars,
+            max_chunks=self.config.max_chunks,
+            overlap=self.config.chunk_overlap_chars,
+        )
 
     async def _call_provider(self, chunk: str, adapter: SchemaAdapter, *, index: int, total: int) -> tuple[str, dict[str, int]]:
         provider = self.config.llm.provider
