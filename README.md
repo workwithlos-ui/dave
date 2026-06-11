@@ -79,7 +79,7 @@ This table is intentionally conservative. It compares publicly documented positi
 | Zero-prompt, zero-schema URL extraction | Yes, built into DAVE | Not documented in sources reviewed | Prompt or schema documented for Extract | Not documented in sources reviewed | Manual code |
 | Built-in recipes for common pages | Yes, company, pricing, jobs, contact, product, reviews | Not a primary documented abstraction | Not a primary documented abstraction | Not a primary documented abstraction | Manual code |
 | Fetching model | HTTP plus optional Playwright, plugin fetchers | Playwright and provider integrations documented | Hosted scrape, crawl, search, extract, interact API | Browser crawler with advanced controls | Bring your own HTTP client |
-| Search plus extraction | Planned fast-follow | SearchGraph documented | Search and Extract documented | Adaptive crawling documented | Manual code |
+| Search plus extraction | Yes, `dave search` over a pluggable provider | SearchGraph documented | Search and Extract documented | Adaptive crawling documented | Manual code |
 | Best fit | Lean structured extraction with production controls | Graph-oriented AI scraping workflows | Managed crawling and extraction API | Configurable open crawler framework | Deterministic HTML parsing |
 
 Sources reviewed: [ScrapeGraphAI README](https://github.com/ScrapeGraphAI/Scrapegraph-ai), [ScrapeGraphAI package metadata](https://github.com/ScrapeGraphAI/Scrapegraph-ai/blob/main/pyproject.toml), [Firecrawl docs](https://docs.firecrawl.dev/introduction), [Firecrawl Extract docs](https://docs.firecrawl.dev/features/extract), [Crawl4AI docs](https://docs.crawl4ai.com/), and [Beautiful Soup docs](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
@@ -183,9 +183,46 @@ Use machine-readable output when you need it:
 dave extract "https://example.com" --prompt "get the title" --output json
 ```
 
+## Search the web, then extract
+
+Skip the step where you go find URLs yourself. Give DAVE a query and it searches the web, then runs the normal extraction pipeline over each result.
+
+```bash
+dave search "best open source CRM" --recipe company_info --limit 5
+```
+
+```python
+import dave
+
+report = await dave.search_extract("best open source CRM", prompt="get the company name and pricing", limit=5)
+for item in report.ok_items:
+    print(item.hit.url, item.data)
+```
+
+Search providers are pluggable so the core stays dependency-light. The default uses DuckDuckGo's HTML endpoint over the HTTPX and Beautiful Soup that DAVE already ships, so there is no API key and no extra dependency. Register your own provider for an internal search index or a paid search API:
+
+```python
+from dave.plugins import register_search
+from dave.search.base import BaseSearchProvider, SearchHit
+
+class InternalSearch(BaseSearchProvider):
+    name = "internal"
+
+    async def search(self, query: str, *, limit: int = 5) -> list[SearchHit]:
+        return [SearchHit(url="https://intranet.example/doc/1", title="Doc 1", rank=1)]
+
+register_search("internal", InternalSearch())
+```
+
+```bash
+dave search "quarterly targets" --search-provider internal --recipe company_info
+```
+
+Per-result failures are isolated: a URL that fails to fetch or extract is reported with its error while the rest of the batch continues.
+
 ## Batch mode
 
-Process hundreds of URLs with progress, retries, cache hits, and a cost summary.
+Process hundreds of known URLs with progress, retries, cache hits, and a cost summary.
 
 ```bash
 dave batch urls.txt --recipe pricing --output results.json
@@ -388,6 +425,8 @@ dave/
 | Streaming CLI output | Done |
 | Batch mode | Done |
 | Plugin registry | Done |
+| Search plus extraction | Done |
+| Stealth fetcher plugin | Planned |
 | Hosted benchmark dashboard | Planned |
 | More recipe packs | Planned |
 | OpenTelemetry traces | Planned |

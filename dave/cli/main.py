@@ -236,6 +236,65 @@ def batch(
     asyncio.run(run())
 
 
+@app.command("search")
+def search(
+    query: Annotated[str, typer.Argument(help="Search query to run before extraction")],
+    recipe: Annotated[str | None, typer.Option("--recipe", "-r", help="Built-in recipe name")] = None,
+    prompt: Annotated[str | None, typer.Option("--prompt", "-p", help="Natural language extraction prompt")] = None,
+    limit: Annotated[int, typer.Option("--limit", "-n", help="Number of search results to extract")] = 5,
+    search_provider: Annotated[str, typer.Option("--search-provider", help="Search provider: duckduckgo, mock, or plugin name")] = "duckduckgo",
+    provider: Annotated[str, typer.Option("--provider", help="LLM provider: openai, anthropic, ollama, mock")] = "mock",
+    model: Annotated[str, typer.Option("--model", help="Model name")] = "mock",
+    fetcher: Annotated[str, typer.Option("--fetcher", help="Fetcher: auto, http, playwright, or plugin name")] = "auto",
+    output: Annotated[str, typer.Option("--output", "-o", help="Output format: rich or json")] = "rich",
+) -> None:
+    """Search the web, then extract structured data from each result.
+
+    Combine with --recipe or --prompt to shape what is extracted from every hit.
+    """
+
+    async def run() -> None:
+        engine = _make_engine(provider, model, fetcher)
+        schema_or_prompt, resolved_prompt = _schema_and_prompt(recipe, prompt)
+        with console.status(f"Searching '{query}' via {search_provider}...", spinner="dots"):
+            report = await engine.search(
+                query,
+                schema_or_prompt,
+                prompt=resolved_prompt,
+                provider=search_provider,
+                limit=limit,
+                include_metadata=True,
+            )
+
+        if output == "json":
+            console.print(JSON(json.dumps(report.to_dict(), ensure_ascii=False)))
+            return
+
+        console.print(
+            Panel.fit(
+                f"Query: [bold]{report.query}[/bold]\n"
+                f"Provider: [bold]{report.provider}[/bold]\n"
+                f"Results: [bold]{len(report.items)}[/bold]  Extracted: [bold green]{len(report.ok_items)}[/bold green]",
+                title="DAVE Search",
+                border_style="green",
+            )
+        )
+        overview = Table(title="Search results", box=box.ROUNDED)
+        overview.add_column("#", style="bold magenta", no_wrap=True)
+        overview.add_column("Title", style="bold cyan")
+        overview.add_column("URL", style="white")
+        overview.add_column("Status", no_wrap=True)
+        for item in report.items:
+            status = "[green]ok[/green]" if item.ok else "[red]failed[/red]"
+            overview.add_row(str(item.hit.rank), item.hit.title or "—", item.hit.url, status)
+        console.print(overview)
+
+        for item in report.ok_items:
+            _render_payload(item.data, title=f"#{item.hit.rank} {item.hit.title or item.hit.url}")
+
+    asyncio.run(run())
+
+
 @app.command("recipes")
 def list_recipes() -> None:
     """List built-in extraction recipes."""

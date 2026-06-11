@@ -26,6 +26,8 @@ from dave.fetchers.http import HttpFetcher
 from dave.fetchers.playwright import PlaywrightFetcher
 from dave.monitoring.costs import CostTracker, estimate_tokens
 from dave.monitoring.logging import get_logger
+from dave.search import get_search_provider
+from dave.search.base import BaseSearchProvider, SearchReport, SearchResultItem
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -160,6 +162,49 @@ class DaveEngine:
                 force_refresh=force_refresh,
             )
         )
+
+    async def search(
+        self,
+        query: str,
+        schema_or_prompt: type[T] | str | None = None,
+        *,
+        prompt: str | None = None,
+        provider: BaseSearchProvider | str | None = None,
+        limit: int = 5,
+        include_metadata: bool = False,
+        force_refresh: bool = False,
+    ) -> SearchReport:
+        """Search the web for a query and run extraction over each result.
+
+        Failures on a single URL are isolated: that result is marked failed with
+        its error and the rest of the batch continues.
+        """
+        search_provider = self._resolve_search_provider(provider)
+        hits = await search_provider.search(query, limit=limit)
+        items: list[SearchResultItem] = []
+        for hit in hits:
+            try:
+                data = await self.extract(
+                    hit.url,
+                    schema_or_prompt,
+                    prompt=prompt,
+                    include_metadata=include_metadata,
+                    force_refresh=force_refresh,
+                )
+                items.append(SearchResultItem(hit=hit, ok=True, data=data))
+            except Exception as exc:
+                self.logger.info("search extract failed", extra={"extra": {"url": hit.url, "error": str(exc)}})
+                items.append(SearchResultItem(hit=hit, ok=False, error=str(exc)))
+        return SearchReport(query=query, provider=search_provider.name, items=items)
+
+    def _resolve_search_provider(self, provider: BaseSearchProvider | str | None) -> BaseSearchProvider:
+        if provider is None:
+            provider = self.config.search_provider
+        if isinstance(provider, BaseSearchProvider):
+            return provider
+        if isinstance(provider, str):
+            return get_search_provider(provider, config=self.config)
+        raise TypeError("provider must be a search provider name, instance, or None")
 
     async def stream_extract(
         self,

@@ -25,6 +25,7 @@ class PluginRegistry:
     fetchers: dict[str, BaseFetcher] = field(default_factory=dict)
     extractors: dict[str, ExtractorPlugin] = field(default_factory=dict)
     recipes: dict[str, Any] = field(default_factory=dict)
+    search: dict[str, Any] = field(default_factory=dict)
 
     def register(
         self,
@@ -33,24 +34,28 @@ class PluginRegistry:
         fetcher: BaseFetcher | None = None,
         extractor: ExtractorPlugin | None = None,
         recipe: Any | None = None,
+        search: Any | None = None,
     ) -> None:
         """Register one or more plugin implementations under a name."""
         if not name or not name.replace("_", "").replace("-", "").isalnum():
             raise ValueError("plugin name must be alphanumeric with optional hyphens or underscores")
-        if fetcher is None and extractor is None and recipe is None:
-            raise ValueError("register requires a fetcher, extractor, or recipe")
+        if fetcher is None and extractor is None and recipe is None and search is None:
+            raise ValueError("register requires a fetcher, extractor, recipe, or search provider")
         if fetcher is not None:
             self.fetchers[name] = fetcher
         if extractor is not None:
             self.extractors[name] = extractor
         if recipe is not None:
             self.recipes[name] = recipe
+        if search is not None:
+            self.search[name] = search
 
     def clear(self) -> None:
         """Clear registered plugins. Mainly useful for tests."""
         self.fetchers.clear()
         self.extractors.clear()
         self.recipes.clear()
+        self.search.clear()
 
 
 registry = PluginRegistry()
@@ -62,18 +67,24 @@ def register(
     fetcher: BaseFetcher | None = None,
     extractor: ExtractorPlugin | None = None,
     recipe: Any | None = None,
+    search: Any | None = None,
 ) -> None:
     """Register a plugin globally.
 
     Example:
         dave.plugins.register("my_fetcher", fetcher=MyFetcher())
     """
-    registry.register(name, fetcher=fetcher, extractor=extractor, recipe=recipe)
+    registry.register(name, fetcher=fetcher, extractor=extractor, recipe=recipe, search=search)
 
 
 def register_fetcher(name: str, fetcher: BaseFetcher) -> None:
     """Register a custom fetcher globally."""
     register(name, fetcher=fetcher)
+
+
+def register_search(name: str, provider: Any) -> None:
+    """Register a custom search provider globally."""
+    register(name, search=provider)
 
 
 def register_extractor(name: str, extractor: ExtractorPlugin) -> None:
@@ -94,3 +105,8 @@ def get_fetchers() -> dict[str, BaseFetcher]:
 def get_recipes() -> dict[str, Any]:
     """Return registered recipes."""
     return dict(registry.recipes)
+
+
+def get_search_providers() -> dict[str, Any]:
+    """Return registered search providers."""
+    return dict(registry.search)
