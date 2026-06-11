@@ -31,6 +31,10 @@ def callback() -> None:
 
 
 def _make_engine(provider: str, model: str, fetcher: str) -> DaveEngine:
+    if fetcher == "stealth":
+        from dave.fetchers.stealth import register_stealth_fetcher
+
+        register_stealth_fetcher()
     config = DaveConfig(fetcher=fetcher, llm=LLMConfig(provider=provider, model=model))
     return DaveEngine(config=config)
 

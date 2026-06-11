@@ -61,7 +61,10 @@ class AntiBotConfig(BaseModel):
 class DaveConfig(BaseModel):
     """Top level configuration for the DAVE engine."""
 
-    fetcher: Literal["auto", "http", "playwright", "firecrawl", "crawl4ai"] = "auto"
+    fetcher: str = Field(
+        default="auto",
+        description="Fetcher backend: auto, http, playwright, stealth, a known integration, or a registered plugin name.",
+    )
     search_provider: str = Field(default="duckduckgo", description="Default web search provider for search-and-extract.")
     timeout_seconds: float = Field(default=30.0, gt=0)
     retries: int = Field(default=2, ge=0)

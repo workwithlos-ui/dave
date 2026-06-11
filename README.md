@@ -319,9 +319,31 @@ DAVE ships with a multi-fetcher backend and a simple routing model.
 | `auto` | Let DAVE choose based on page signals | `--fetcher auto` |
 | `http` | Fast static pages and APIs | `--fetcher http` |
 | `playwright` | JavaScript-rendered pages | `--fetcher playwright` |
+| `stealth` | Sites that block ordinary automation | `--fetcher stealth` |
 | plugin | Firecrawl, Crawl4AI, internal crawlers, or custom fetchers | `--fetcher your_name` |
 
 Proxy rotation is configured through `DaveConfig.proxies`. Bring your own proxy URLs and DAVE will rotate them across requests.
+
+### Stealth fetcher
+
+Some sites block headless browsers with bot walls and 403s. The stealth fetcher runs Playwright with an evasion layer — automation-control launch flags, a realistic browser context and client hints, and an init script that hides the signals most bot walls inspect (`navigator.webdriver`, missing `window.chrome`, headless WebGL vendor strings). It adds no heavy dependency such as `undetected-playwright`; it only needs Playwright, installed through the `stealth` extra.
+
+```bash
+pip install "dave-ai[stealth]"
+python -m playwright install chromium
+dave search "best open source CRM" --recipe company_info --fetcher stealth
+```
+
+```python
+import dave
+from dave.core.config import DaveConfig
+from dave.fetchers.stealth import register_stealth_fetcher
+
+register_stealth_fetcher()
+result = await dave.extract("https://example.com", "get the title", config=DaveConfig(fetcher="stealth"))
+```
+
+Stealth reduces detection; it is not a guarantee. Pair it with `DaveConfig.proxies` for sites that rate-limit or block by IP. Use it where you have permission to scrape, and respect each site's terms of service and `robots.txt`.
 
 ## Plugin system
 
@@ -401,12 +423,20 @@ python -m pip install -e ".[playwright]"
 python -m playwright install chromium
 ```
 
+The stealth fetcher uses the same Playwright runtime, available through the `stealth` extra:
+
+```bash
+python -m pip install -e ".[stealth]"
+python -m playwright install chromium
+```
+
 ## Project structure
 
 ```text
 dave/
   core/          Engine, config, retries, queue, rate limits
-  fetchers/      HTTP, Playwright, Firecrawl, Crawl4AI, router
+  fetchers/      HTTP, Playwright, stealth, Firecrawl, Crawl4AI, router
+  search/        Web search providers (DuckDuckGo, mock, pluggable)
   extractors/    LLM extraction, schema validation, confidence
   antibot/       Proxy and user-agent helpers
   cache/         SQLite response cache
@@ -426,7 +456,7 @@ dave/
 | Batch mode | Done |
 | Plugin registry | Done |
 | Search plus extraction | Done |
-| Stealth fetcher plugin | Planned |
+| Stealth fetcher plugin | Done |
 | Hosted benchmark dashboard | Planned |
 | More recipe packs | Planned |
 | OpenTelemetry traces | Planned |

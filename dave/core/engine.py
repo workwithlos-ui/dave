@@ -333,6 +333,12 @@ class DaveEngine:
         if self.config.fetcher != "auto":
             if self.config.fetcher in {"firecrawl", "crawl4ai"}:
                 raise FetchError(f"{self.config.fetcher} integration is configured as optional and is not installed in this build")
+            if self.config.fetcher not in self.fetchers:
+                known = ", ".join(sorted(self.fetchers))
+                raise FetchError(
+                    f"Unknown fetcher {self.config.fetcher!r}. Available fetchers: {known}. "
+                    "Register plugin fetchers with dave.plugins.register_fetcher() before use."
+                )
             return self.config.fetcher
         if self._should_render_js(url):
             return "playwright"
