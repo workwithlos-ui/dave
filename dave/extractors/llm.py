@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -15,6 +16,15 @@ from dave.extractors.chunking import chunk_text
 from dave.extractors.confidence import ConfidenceReport, score_confidence
 from dave.extractors.schema import SchemaAdapter, schema_prompt, validate_against_schema
 from dave.monitoring.costs import CostTracker, estimate_tokens
+
+# OpenAI-compatible providers: provider -> (default base url, label, env var fallbacks).
+_OPENAI_COMPATIBLE: dict[str, tuple[str, str, tuple[str, ...]]] = {
+    "openai": ("https://api.openai.com/v1", "OpenAI", ("DAVE_LLM_API_KEY", "OPENAI_API_KEY")),
+    "groq": ("https://api.groq.com/openai/v1", "Groq", ("DAVE_LLM_API_KEY", "GROQ_API_KEY")),
+    "mistral": ("https://api.mistral.ai/v1", "Mistral", ("DAVE_LLM_API_KEY", "MISTRAL_API_KEY")),
+}
+
+_GEMINI_ENV = ("DAVE_LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
 
 
 @dataclass(slots=True)
@@ -87,13 +97,29 @@ class LLMExtractor:
                 "completion_tokens": 180,
                 "total_tokens": estimate_tokens(chunk) + estimate_tokens(adapter.prompt) + 180,
             }
-        if provider == "openai":
-            return await self._call_openai(chunk, adapter, index=index, total=total)
+        if provider in _OPENAI_COMPATIBLE:
+            return await self._call_openai_compatible(provider, chunk, adapter, index=index, total=total)
         if provider == "anthropic":
             return await self._call_anthropic(chunk, adapter, index=index, total=total)
+        if provider == "gemini":
+            return await self._call_gemini(chunk, adapter, index=index, total=total)
         if provider == "ollama":
             return await self._call_ollama(chunk, adapter, index=index, total=total)
         raise ExtractionError(f"Unsupported LLM provider: {provider}")
+
+    def _resolve_api_key(self, env_vars: tuple[str, ...], *, label: str) -> str:
+        """Use an explicit config key, then provider-specific environment variables."""
+        api_key = self.config.llm.api_key
+        if not api_key:
+            for name in env_vars:
+                value = os.getenv(name)
+                if value:
+                    api_key = value
+                    break
+        if not api_key:
+            primary = next((name for name in env_vars if name != "DAVE_LLM_API_KEY"), env_vars[0])
+            raise ExtractionError(f"{label} provider requires an API key. Set DAVE_LLM_API_KEY or {primary}.")
+        return api_key
 
     def _messages(self, chunk: str, adapter: SchemaAdapter, *, index: int, total: int) -> list[dict[str, str]]:
         """Build provider messages for a chunk."""
@@ -111,11 +137,12 @@ class LLMExtractor:
         )
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
-    async def _call_openai(self, chunk: str, adapter: SchemaAdapter, *, index: int, total: int) -> tuple[str, dict[str, int]]:
-        api_key = self.config.llm.api_key
-        if not api_key:
-            raise ExtractionError("OpenAI provider requires an API key. Set DAVE_LLM_API_KEY or OPENAI_API_KEY.")
-        base_url = (self.config.llm.base_url or "https://api.openai.com/v1").rstrip("/")
+    async def _call_openai_compatible(
+        self, provider: str, chunk: str, adapter: SchemaAdapter, *, index: int, total: int
+    ) -> tuple[str, dict[str, int]]:
+        default_base, label, env_vars = _OPENAI_COMPATIBLE[provider]
+        api_key = self._resolve_api_key(env_vars, label=label)
+        base_url = (self.config.llm.base_url or default_base).rstrip("/")
         payload = {
             "model": self.config.llm.model,
             "messages": self._messages(chunk, adapter, index=index, total=total),
@@ -126,7 +153,7 @@ class LLMExtractor:
         async with httpx.AsyncClient(timeout=self.config.llm.request_timeout_seconds) as client:
             response = await client.post(f"{base_url}/chat/completions", json=payload, headers=headers)
         if response.status_code >= 400:
-            raise ExtractionError(f"OpenAI extraction failed: {response.text[:500]}")
+            raise ExtractionError(f"{label} extraction failed: {response.text[:500]}")
         body = response.json()
         usage = body.get("usage", {})
         content = body["choices"][0]["message"]["content"]
@@ -134,6 +161,37 @@ class LLMExtractor:
             "prompt_tokens": int(usage.get("prompt_tokens", 0)),
             "completion_tokens": int(usage.get("completion_tokens", 0)),
             "total_tokens": int(usage.get("total_tokens", 0)),
+        }
+
+    async def _call_gemini(self, chunk: str, adapter: SchemaAdapter, *, index: int, total: int) -> tuple[str, dict[str, int]]:
+        api_key = self._resolve_api_key(_GEMINI_ENV, label="Gemini")
+        messages = self._messages(chunk, adapter, index=index, total=total)
+        base_url = (self.config.llm.base_url or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+        url = f"{base_url}/models/{self.config.llm.model}:generateContent"
+        payload = {
+            "systemInstruction": {"parts": [{"text": messages[0]["content"]}]},
+            "contents": [{"role": "user", "parts": [{"text": messages[1]["content"]}]}],
+            "generationConfig": {
+                "temperature": self.config.llm.temperature,
+                "responseMimeType": "application/json",
+            },
+        }
+        headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=self.config.llm.request_timeout_seconds) as client:
+            response = await client.post(url, json=payload, headers=headers)
+        if response.status_code >= 400:
+            raise ExtractionError(f"Gemini extraction failed: {response.text[:500]}")
+        body = response.json()
+        usage = body.get("usageMetadata", {})
+        candidates = body.get("candidates", [])
+        parts = candidates[0].get("content", {}).get("parts", [{}]) if candidates else [{}]
+        content = "".join(part.get("text", "") for part in parts)
+        prompt_tokens = int(usage.get("promptTokenCount", 0))
+        completion_tokens = int(usage.get("candidatesTokenCount", 0))
+        return content, {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": int(usage.get("totalTokenCount", prompt_tokens + completion_tokens)),
         }
 
     async def _call_anthropic(self, chunk: str, adapter: SchemaAdapter, *, index: int, total: int) -> tuple[str, dict[str, int]]:

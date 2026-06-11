@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 class LLMConfig(BaseModel):
     """Configuration for language model providers."""
 
-    provider: Literal["openai", "anthropic", "ollama", "mock"] = Field(
+    provider: Literal["openai", "anthropic", "ollama", "groq", "mistral", "gemini", "mock"] = Field(
         default="openai",
         description="Default LLM provider.",
     )

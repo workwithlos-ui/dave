@@ -400,11 +400,16 @@ Environment variables are supported for common provider keys:
 
 | Variable | Purpose |
 | --- | --- |
-| `DAVE_LLM_PROVIDER` | Select `openai`, `anthropic`, `ollama`, or `mock` |
-| `DAVE_LLM_API_KEY` | Provider API key |
+| `DAVE_LLM_PROVIDER` | Select `openai`, `anthropic`, `gemini`, `groq`, `mistral`, `ollama`, or `mock` |
+| `DAVE_LLM_API_KEY` | Provider API key (used by any provider) |
 | `OPENAI_API_KEY` | OpenAI fallback key |
 | `ANTHROPIC_API_KEY` | Anthropic fallback key |
+| `GEMINI_API_KEY` / `GOOGLE_API_KEY` | Gemini fallback key |
+| `GROQ_API_KEY` | Groq fallback key |
+| `MISTRAL_API_KEY` | Mistral fallback key |
 | `DAVE_LLM_MODEL` | Model override |
+
+All cloud providers run over plain HTTPX with native request shapes — no LangChain, no provider SDKs. OpenAI, Groq, and Mistral share the OpenAI-compatible chat API; Gemini and Anthropic use their native endpoints; Ollama runs locally.
 
 ## Local development
 
