@@ -220,6 +220,24 @@ dave search "quarterly targets" --search-provider internal --recipe company_info
 
 Per-result failures are isolated: a URL that fails to fetch or extract is reported with its error while the rest of the batch continues.
 
+## Vision: structured data from images
+
+When the DOM lies — canvas-rendered apps, image-only pages, scanned documents, screenshots, invoices — extract from the pixels instead. DAVE sends the image to a vision-capable model (OpenAI, Anthropic, or Gemini) and returns the same validated, confidence-scored structured data the text pipeline produces.
+
+```python
+import dave
+from pydantic import BaseModel
+
+class Invoice(BaseModel):
+    vendor: str
+    total: str
+
+invoice = await dave.extract_image("invoice.png", Invoice)
+print(invoice.vendor, invoice.total)
+```
+
+Pass a file path or raw bytes. Image extraction has no source text to ground against, so confidence reflects field completeness and is labelled honestly rather than faked as source overlap.
+
 ## Batch mode
 
 Process hundreds of known URLs with progress, retries, cache hits, and a cost summary.
@@ -467,6 +485,11 @@ dave/
 | Plugin registry | Done |
 | Search plus extraction | Done |
 | Stealth fetcher plugin | Done |
+| Semantic chunking | Done |
+| Native multi-provider (OpenAI, Anthropic, Gemini, Groq, Mistral, Ollama) | Done |
+| Local file and PDF input | Done |
+| robots.txt politeness | Done |
+| Vision: structured data from images | Done |
 | Hosted benchmark dashboard | Planned |
 | More recipe packs | Planned |
 | OpenTelemetry traces | Planned |

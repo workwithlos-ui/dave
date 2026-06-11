@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import mimetypes
 import time
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 from dataclasses import asdict, dataclass, is_dataclass
+from pathlib import Path
 from typing import Any, TypeVar
 from urllib.parse import urlparse
 
@@ -21,6 +23,7 @@ from dave.core.config import DaveConfig
 from dave.core.errors import CaptchaDetectedError, FetchError, LowConfidenceError, RobotsDisallowedError
 from dave.extractors.llm import ExtractionResult, LLMExtractor
 from dave.extractors.schema import make_schema_adapter, schema_prompt
+from dave.extractors.vision import VisionExtractor
 from dave.fetchers.base import BaseFetcher, FetchRequest, FetchResult
 from dave.fetchers.file import FileFetcher, is_local_source
 from dave.fetchers.http import HttpFetcher
@@ -166,6 +169,44 @@ class DaveEngine:
                 force_refresh=force_refresh,
             )
         )
+
+    async def extract_image(
+        self,
+        source: str | bytes,
+        schema_or_prompt: type[T] | str | None = None,
+        *,
+        prompt: str | None = None,
+        media_type: str | None = None,
+        include_metadata: bool = False,
+    ) -> T | dict[str, Any] | DaveExtraction:
+        """Extract structured data from an image (path or raw bytes) using a vision model."""
+        if isinstance(source, (bytes, bytearray)):
+            image_bytes = bytes(source)
+            resolved_media = media_type or "image/png"
+            final_url = "image"
+        else:
+            path = Path(str(source)).expanduser()
+            if not path.exists() or not path.is_file():
+                raise FetchError(f"Image not found: {path}")
+            image_bytes = path.read_bytes()
+            resolved_media = media_type or mimetypes.guess_type(str(path))[0] or "image/png"
+            final_url = path.as_uri()
+
+        adapter = make_schema_adapter(schema_or_prompt, prompt=prompt)
+        extractor = VisionExtractor(self.config, cost_tracker=self.cost_tracker)
+        extraction = await extractor.extract(image_bytes, adapter, media_type=resolved_media)
+        output = adapter.model.model_validate(extraction.data) if adapter.model else extraction.data
+        if include_metadata:
+            return DaveExtraction(
+                data=output,
+                confidence=extraction.confidence.overall,
+                field_confidence={field.field: field.score for field in extraction.confidence.fields},
+                evidence=extraction.evidence,
+                cost_usd=extraction.cost_usd,
+                fetcher="vision",
+                final_url=final_url,
+            )
+        return output
 
     async def search(
         self,

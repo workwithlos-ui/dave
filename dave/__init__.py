@@ -24,6 +24,7 @@ __all__ = [
     "SearchReport",
     "StreamEvent",
     "extract",
+    "extract_image",
     "extract_sync",
     "recipes",
     "search_extract",
@@ -59,6 +60,20 @@ def extract_sync(
     """Synchronous wrapper around :func:`extract`."""
     engine = DaveEngine(config=config)
     return engine.extract_sync(url, schema_or_prompt, prompt=prompt, **kwargs)
+
+
+async def extract_image(
+    source: str | bytes,
+    schema_or_prompt: type[T] | str | None = None,
+    *,
+    prompt: str | None = None,
+    config: DaveConfig | None = None,
+    media_type: str | None = None,
+    **kwargs: Any,
+) -> Any:
+    """Extract structured data from an image file or bytes using a vision model."""
+    engine = DaveEngine(config=config)
+    return await engine.extract_image(source, schema_or_prompt, prompt=prompt, media_type=media_type, **kwargs)
 
 
 async def search_extract(
