@@ -345,7 +345,7 @@ class DaveEngine:
         )
         fetcher_name = self._select_fetcher(url)
         result = await self._fetch_with_retries(fetcher_name, request)
-        if detect_captcha(result.html):
+        if detect_captcha(result.html, result.text):
             raise CaptchaDetectedError(f"CAPTCHA or bot challenge detected at {url}")
         if self.cache:
             self.cache.set("fetch", cache_key, result.to_dict())
