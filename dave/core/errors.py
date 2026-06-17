@@ -19,6 +19,14 @@ class RobotsDisallowedError(FetchError):
     """Raised when robots.txt disallows fetching a URL and robots are respected."""
 
 
+class LeadsConfigError(DaveError):
+    """Raised when the local-leads source (Apify) is not configured."""
+
+
+class LeadsRequestError(DaveError):
+    """Raised when the local-leads source request fails."""
+
+
 class ExtractionError(DaveError):
     """Raised when extraction fails."""
 

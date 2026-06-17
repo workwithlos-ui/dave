@@ -220,6 +220,26 @@ dave search "quarterly targets" --search-provider internal --recipe company_info
 
 Per-result failures are isolated: a URL that fails to fetch or extract is reported with its error while the rest of the batch continues.
 
+## Local business leads
+
+Turn an industry and a city into a ready-to-dial list — real businesses with phone numbers, addresses, ratings, and websites. Backed by the Apify Google Maps scraper, the reliable source for local-business data that general web scraping can't get.
+
+```bash
+export APIFY_API_KEY=...        # from console.apify.com/account/integrations
+dave leads "roofing companies" "Dallas, TX" --max 20 --output csv > leads.csv
+```
+
+```python
+import dave
+
+report = await dave.find_leads("med spas", "Scottsdale, AZ", max_results=25)
+for lead in report.leads:
+    print(lead.business_name, lead.phone, lead.website)
+print(report.to_csv())   # Business Name, Phone, Website, Address, Category, Rating, Reviews, Call Summary, Status
+```
+
+Only businesses with a phone are returned (it's built for cold calling). Pair it with DAVE's extraction to enrich each business's own site, or with an LLM to write per-lead call summaries. This is the discovery layer general scrapers — including ScrapeGraphAI — don't have.
+
 ## Vision: structured data from images
 
 When the DOM lies — canvas-rendered apps, image-only pages, scanned documents, screenshots, invoices — extract from the pixels instead. DAVE sends the image to a vision-capable model (OpenAI, Anthropic, or Gemini) and returns the same validated, confidence-scored structured data the text pipeline produces.
@@ -509,6 +529,7 @@ dave/
 | robots.txt politeness | Done |
 | Vision: structured data from images | Done |
 | Multi-page crawling | Done |
+| Local business leads (Apify Google Maps) | Done |
 | Hosted benchmark dashboard | Planned |
 | More recipe packs | Planned |
 | OpenTelemetry traces | Planned |

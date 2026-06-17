@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from dave import recipes
 from dave.core.config import DaveConfig
 from dave.core.engine import CostEstimate, DaveEngine, DaveExtraction, StreamEvent
+from dave.leads import find_leads
 from dave.search import BaseSearchProvider, SearchHit, SearchReport
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "extract",
     "extract_image",
     "extract_sync",
+    "find_leads",
     "recipes",
     "search_extract",
 ]

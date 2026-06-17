@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dave-ai"
-version = "0.1.2"
+version = "0.1.3"
 description = "DAVE, Data Acquisition and Validation Engine for production AI-powered scraping"
 readme = "README.md"
 requires-python = ">=3.10"

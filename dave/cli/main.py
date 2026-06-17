@@ -346,6 +346,48 @@ def crawl(
     asyncio.run(run())
 
 
+@app.command("leads")
+def leads(
+    industry: Annotated[str, typer.Argument(help="Industry or business type, e.g. 'roofing companies'")],
+    city: Annotated[str, typer.Argument(help="City, e.g. 'Dallas, TX'")],
+    max_results: Annotated[int, typer.Option("--max", "-n", help="Max businesses to pull")] = 20,
+    output: Annotated[str, typer.Option("--output", "-o", help="Output format: rich, csv, or json")] = "rich",
+) -> None:
+    """Find local businesses with phone numbers (a ready-to-dial list). Needs APIFY_API_KEY."""
+
+    async def run() -> None:
+        from dave.leads import find_leads
+
+        with console.status(f"Pulling {industry} in {city} from Google Maps...", spinner="dots"):
+            report = await find_leads(industry, city, max_results=max_results)
+
+        if output == "json":
+            console.print(JSON(json.dumps(report.to_dict(), ensure_ascii=False)))
+            return
+        if output == "csv":
+            print(report.to_csv())
+            return
+
+        console.print(
+            Panel.fit(
+                f"[bold]{report.industry}[/bold] in [bold]{report.city}[/bold] — "
+                f"[bold green]{len(report.leads)} businesses with phones[/bold green]",
+                title="DAVE Leads", border_style="green",
+            )
+        )
+        table = Table(title="Ready-to-dial list", box=box.ROUNDED, show_lines=False)
+        table.add_column("Business", style="bold cyan")
+        table.add_column("Phone", style="bold white", no_wrap=True)
+        table.add_column("Rating", no_wrap=True)
+        table.add_column("Website")
+        for lead in report.leads:
+            rating = f"{lead.rating}★ ({lead.reviews_count})" if lead.rating else "—"
+            table.add_row(lead.business_name, lead.phone, rating, lead.website or "—")
+        console.print(table)
+
+    asyncio.run(run())
+
+
 @app.command("recipes")
 def list_recipes() -> None:
     """List built-in extraction recipes."""
