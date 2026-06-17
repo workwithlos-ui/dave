@@ -21,6 +21,7 @@ from dave.antibot.stealth import DelayPolicy, UserAgentRotator, detect_captcha, 
 from dave.cache.store import CacheStore
 from dave.core.config import DaveConfig
 from dave.core.errors import CaptchaDetectedError, FetchError, LowConfidenceError, RobotsDisallowedError
+from dave.crawl import CrawlItem, CrawlReport, extract_links
 from dave.extractors.llm import ExtractionResult, LLMExtractor
 from dave.extractors.schema import make_schema_adapter, schema_prompt
 from dave.extractors.vision import VisionExtractor
@@ -169,6 +170,57 @@ class DaveEngine:
                 force_refresh=force_refresh,
             )
         )
+
+    async def crawl(
+        self,
+        start_url: str,
+        schema_or_prompt: type[T] | str | None = None,
+        *,
+        prompt: str | None = None,
+        max_pages: int = 10,
+        max_depth: int = 2,
+        same_domain: bool = True,
+    ) -> CrawlReport:
+        """Crawl a site breadth-first and extract from each page.
+
+        Bounded by ``max_pages`` and ``max_depth``; same-domain by default. Each
+        page goes through the full pipeline; a page that fails to fetch or extract
+        is recorded with its error and the crawl continues.
+        """
+        adapter = make_schema_adapter(schema_or_prompt, prompt=prompt)
+        visited: set[str] = set()
+        queue: deque[tuple[str, int]] = deque([(start_url, 0)])
+        items: list[CrawlItem] = []
+
+        while queue and len(items) < max_pages:
+            url, depth = queue.popleft()
+            key = url.rstrip("/")
+            if key in visited:
+                continue
+            visited.add(key)
+            try:
+                fetch_result = await self.fetch(url)
+                extraction = await self._extract_with_quality_retry(fetch_result, adapter)
+                data = adapter.model.model_validate(extraction.data) if adapter.model else extraction.data
+                items.append(
+                    CrawlItem(
+                        url=url,
+                        depth=depth,
+                        ok=True,
+                        data=data,
+                        confidence=extraction.confidence.overall,
+                        cost_usd=extraction.cost_usd,
+                    )
+                )
+                if depth < max_depth:
+                    for link in extract_links(fetch_result.html, fetch_result.final_url, same_domain=same_domain):
+                        if link.rstrip("/") not in visited:
+                            queue.append((link, depth + 1))
+            except Exception as exc:
+                self.logger.info("crawl page failed", extra={"extra": {"url": url, "error": str(exc)}})
+                items.append(CrawlItem(url=url, depth=depth, ok=False, error=str(exc)))
+
+        return CrawlReport(start_url=start_url, items=items)
 
     async def extract_image(
         self,

@@ -238,6 +238,24 @@ print(invoice.vendor, invoice.total)
 
 Pass a file path or raw bytes. Image extraction has no source text to ground against, so confidence reflects field completeness and is labelled honestly rather than faked as source overlap.
 
+## Crawl a whole site
+
+Point DAVE at a starting URL and it follows links across the site, extracting from every page. Breadth-first, bounded by page count and depth, same-domain by default. Every page goes through the full pipeline — cache, retries, rate limits, robots.txt, and confidence all apply per page.
+
+```bash
+dave crawl "https://example.com" --recipe company_info --max-pages 20 --max-depth 2
+```
+
+```python
+import dave
+
+report = await dave.crawl("https://example.com", "get the page title and summary", max_pages=20, max_depth=2)
+for page in report.ok_items:
+    print(page.url, page.data)
+```
+
+A page that fails to fetch or extract is recorded with its error; the crawl keeps going. Use `--any-domain` to follow external links.
+
 ## Batch mode
 
 Process hundreds of known URLs with progress, retries, cache hits, and a cost summary.
@@ -490,6 +508,7 @@ dave/
 | Local file and PDF input | Done |
 | robots.txt politeness | Done |
 | Vision: structured data from images | Done |
+| Multi-page crawling | Done |
 | Hosted benchmark dashboard | Planned |
 | More recipe packs | Planned |
 | OpenTelemetry traces | Planned |

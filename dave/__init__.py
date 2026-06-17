@@ -23,6 +23,7 @@ __all__ = [
     "SearchHit",
     "SearchReport",
     "StreamEvent",
+    "crawl",
     "extract",
     "extract_image",
     "extract_sync",
@@ -60,6 +61,24 @@ def extract_sync(
     """Synchronous wrapper around :func:`extract`."""
     engine = DaveEngine(config=config)
     return engine.extract_sync(url, schema_or_prompt, prompt=prompt, **kwargs)
+
+
+async def crawl(
+    start_url: str,
+    schema_or_prompt: type[T] | str | None = None,
+    *,
+    prompt: str | None = None,
+    config: DaveConfig | None = None,
+    max_pages: int = 10,
+    max_depth: int = 2,
+    same_domain: bool = True,
+) -> Any:
+    """Crawl a site breadth-first and extract structured data from each page."""
+    engine = DaveEngine(config=config)
+    return await engine.crawl(
+        start_url, schema_or_prompt, prompt=prompt,
+        max_pages=max_pages, max_depth=max_depth, same_domain=same_domain,
+    )
 
 
 async def extract_image(

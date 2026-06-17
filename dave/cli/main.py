@@ -299,6 +299,53 @@ def search(
     asyncio.run(run())
 
 
+@app.command("crawl")
+def crawl(
+    start_url: Annotated[str, typer.Argument(help="URL to start crawling from")],
+    recipe: Annotated[str | None, typer.Option("--recipe", "-r", help="Built-in recipe name")] = None,
+    prompt: Annotated[str | None, typer.Option("--prompt", "-p", help="Natural language extraction prompt")] = None,
+    max_pages: Annotated[int, typer.Option("--max-pages", help="Maximum pages to crawl")] = 10,
+    max_depth: Annotated[int, typer.Option("--max-depth", help="Maximum link depth from the start URL")] = 2,
+    same_domain: Annotated[bool, typer.Option("--same-domain/--any-domain", help="Restrict to the start URL's domain")] = True,
+    provider: Annotated[str, typer.Option("--provider", help="LLM provider: openai, anthropic, gemini, groq, mistral, ollama, mock")] = "mock",
+    model: Annotated[str, typer.Option("--model", help="Model name")] = "mock",
+    fetcher: Annotated[str, typer.Option("--fetcher", help="Fetcher: auto, http, playwright, stealth, or plugin name")] = "auto",
+    output: Annotated[str, typer.Option("--output", "-o", help="Output format: rich or json")] = "rich",
+) -> None:
+    """Crawl a site and extract structured data from every page."""
+
+    async def run() -> None:
+        engine = _make_engine(provider, model, fetcher)
+        schema_or_prompt, resolved_prompt = _schema_and_prompt(recipe, prompt)
+        with console.status(f"Crawling {start_url} (max {max_pages} pages, depth {max_depth})...", spinner="dots"):
+            report = await engine.crawl(
+                start_url, schema_or_prompt, prompt=resolved_prompt,
+                max_pages=max_pages, max_depth=max_depth, same_domain=same_domain,
+            )
+
+        if output == "json":
+            console.print(JSON(json.dumps(report.to_dict(), ensure_ascii=False)))
+            return
+
+        console.print(
+            Panel.fit(
+                f"Start: [bold]{report.start_url}[/bold]\n"
+                f"Pages: [bold]{len(report.items)}[/bold]  Extracted: [bold green]{len(report.ok_items)}[/bold green]",
+                title="DAVE Crawl", border_style="green",
+            )
+        )
+        table = Table(title="Crawled pages", box=box.ROUNDED)
+        table.add_column("Depth", style="bold magenta", no_wrap=True)
+        table.add_column("URL", style="white")
+        table.add_column("Status", no_wrap=True)
+        for item in report.items:
+            status = "[green]ok[/green]" if item.ok else "[red]failed[/red]"
+            table.add_row(str(item.depth), item.url, status)
+        console.print(table)
+
+    asyncio.run(run())
+
+
 @app.command("recipes")
 def list_recipes() -> None:
     """List built-in extraction recipes."""
