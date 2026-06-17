@@ -50,13 +50,13 @@ DAVE is designed for developers who need more than a prototype but do not want a
 
 ## Why DAVE?
 
-Most AI scraping tools are impressive in a notebook and heavy in a production job. ScrapeGraphAI publicly documents a graph-based API and a broad LangChain dependency stack. DAVE takes the opposite path: a small typed core, direct fetcher and extractor interfaces, and production controls that are easy to reason about.
+Most AI scraping tools are impressive in a notebook and fragile in a production job — heavy dependency stacks, no retries, no caching, no cost visibility. DAVE takes the opposite path: a small typed core, direct fetcher and extractor interfaces, and production controls that are easy to reason about.
 
 | What developers need | How DAVE handles it |
 | --- | --- |
 | Keep dependency risk low | Ships with five runtime dependencies: Beautiful Soup, HTTPX, Pydantic, Rich, and Typer |
 | Avoid framework lock-in | Uses no LangChain dependency and no graph DSL |
-| Scrape static and JavaScript-heavy pages | Auto-selects HTTP or Playwright, with extension points for Firecrawl and Crawl4AI |
+| Scrape static and JavaScript-heavy pages | Auto-selects HTTP or Playwright, with extension points for external crawlers |
 | Extract with a prompt or a schema | Accepts natural language prompts, Pydantic models, built-in recipes, or no prompt at all |
 | Trust the output | Validates schema extraction through Pydantic and reports transparent heuristic confidence |
 | Keep costs visible | Estimates tokens before runs and tracks cost after runs |
@@ -64,25 +64,6 @@ Most AI scraping tools are impressive in a notebook and heavy in a production jo
 | Avoid building glue code | Ships caching, queueing, structured logging, CLI commands, and plugin registration |
 
 Confidence is a transparent heuristic based on evidence presence and source-text overlap, not a model-reported probability.
-
-## Feature comparison
-
-This table is intentionally conservative. It compares publicly documented positioning and core APIs, not private roadmaps or unmeasured performance claims.
-
-| Capability | DAVE | ScrapeGraphAI | Firecrawl | Crawl4AI | BeautifulSoup |
-| --- | --- | --- | --- | --- | --- |
-| Core positioning | Lean Python extraction engine | Graph-based AI scraping library | Hosted web data API | Open LLM-friendly crawler and scraper | HTML and XML parser |
-| LangChain dependency in core install | No | Yes, documented in package metadata | Not applicable to hosted API usage | No claim in docs reviewed | No |
-| Runtime dependency count in Python package | Five core dependencies | Broad dependency tree in package metadata | SDK plus hosted service | Framework package with browser-focused stack | Parser library |
-| Natural-language extraction | Yes | Yes, via graph APIs | Yes, via Extract API | Yes, via LLM extraction strategies | No |
-| Schema-shaped extraction | Yes, Pydantic-first | Yes, documented schema examples | Yes, JSON schema in Extract API | Yes, CSS, XPath, and LLM strategies | Manual code |
-| Zero-prompt, zero-schema URL extraction | Yes, built into DAVE | Not documented in sources reviewed | Prompt or schema documented for Extract | Not documented in sources reviewed | Manual code |
-| Built-in recipes for common pages | Yes, company, pricing, jobs, contact, product, reviews | Not a primary documented abstraction | Not a primary documented abstraction | Not a primary documented abstraction | Manual code |
-| Fetching model | HTTP plus optional Playwright, plugin fetchers | Playwright and provider integrations documented | Hosted scrape, crawl, search, extract, interact API | Browser crawler with advanced controls | Bring your own HTTP client |
-| Search plus extraction | Yes, `dave search` over a pluggable provider | SearchGraph documented | Search and Extract documented | Adaptive crawling documented | Manual code |
-| Best fit | Lean structured extraction with production controls | Graph-oriented AI scraping workflows | Managed crawling and extraction API | Configurable open crawler framework | Deterministic HTML parsing |
-
-Sources reviewed: [ScrapeGraphAI README](https://github.com/ScrapeGraphAI/Scrapegraph-ai), [ScrapeGraphAI package metadata](https://github.com/ScrapeGraphAI/Scrapegraph-ai/blob/main/pyproject.toml), [Firecrawl docs](https://docs.firecrawl.dev/introduction), [Firecrawl Extract docs](https://docs.firecrawl.dev/features/extract), [Crawl4AI docs](https://docs.crawl4ai.com/), and [Beautiful Soup docs](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
 
 ## Zero-config magic
 
@@ -238,7 +219,7 @@ for lead in report.leads:
 print(report.to_csv())   # Business Name, Phone, Website, Address, Category, Rating, Reviews, Call Summary, Status
 ```
 
-Only businesses with a phone are returned (it's built for cold calling). Pair it with DAVE's extraction to enrich each business's own site, or with an LLM to write per-lead call summaries. This is the discovery layer general scrapers — including ScrapeGraphAI — don't have.
+Only businesses with a phone are returned (it's built for cold calling). Pair it with DAVE's extraction to enrich each business's own site, or with an LLM to write per-lead call summaries. This is the discovery layer general AI scrapers don't have.
 
 ## Vision: structured data from images
 
